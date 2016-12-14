@@ -7,17 +7,22 @@ import argparse
 from parser.xml_parser import XmlParser
 from generator.cpp_gen import CppGenerator
 
-# 定义命令行参数解析规则
-parser = argparse.ArgumentParser(description="Data Access Layer Generator Usage")
-parser.add_argument("-i", "--input", dest="src", help="input the defination filename")
-parser.add_argument("-o", "--output", dest="dest", help="output the generated file")
-parser.parse_args()
+def read_args():
+    """
+    定义命令行参数
+    """
+    parser = argparse.ArgumentParser(description="Data Access Layer Generator Usage")
+    parser.add_argument("-i", "--input", dest="src", help="input the defination filename")
+    parser.add_argument("-o", "--output", dest="dest", help="output the generated file")
 
-if __name__ == "__main__":
-    # 解析命令行参数
     args = parser.parse_args()
-    input_filename = args.src
-    output_dir = args.dest
+    return args.src, args.dest
+
+def do_main():
+    """
+    执行main函数
+    """
+    input_filename, output_dir = read_args()
     print "start generating file:{0} to dir: {1}".format(input_filename, output_dir)
 
     # 解析*.xml内容到内存
@@ -34,3 +39,6 @@ if __name__ == "__main__":
 
     # 输出生成结果
     print "generate code from {0} successfully!".format(input_filename)
+
+if __name__ == "__main__":
+    do_main()

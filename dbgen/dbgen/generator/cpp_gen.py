@@ -4,7 +4,6 @@
 生成.h,.cc 文件
 """
 import os
-import xml.etree.ElementTree as ElementTree
 
 class CppGenerator(object):
     """
@@ -32,6 +31,11 @@ class CppGenerator(object):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
+        # 生成 header
+        self._generate_header()
+
+        # 生成 cc
+        self._generate_cc()
         return True
 
     def _generate_header(self):
