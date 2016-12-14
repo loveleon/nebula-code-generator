@@ -1,11 +1,11 @@
-<!-- object定义为一个DAO对象 name为类名，tableName为对应的表名 -->
-<!-- dbname 可选，若需要同时生成不同库的对象，则加入dbname选项 -->
-<object name="UserDao" tableName="User" dbname="NBUser" >
+<!-- tableName为对应的表名 -->
+<object tableName="User">
 
     <!-- 定义字段名称和类型 -->
     <fields>
-        <field name="id" type="int32" />
-        <field name="name" type="varchar" len="32" />
+        <field name="id" type="int32" defaultValue="0" />
+        <field name="appId" type="uint32" defaultValue="1" />
+        <field name="name" type="string" />
     </fields>
 
     <!-- 定义select接口 -->
