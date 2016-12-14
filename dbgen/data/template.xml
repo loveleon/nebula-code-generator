@@ -1,0 +1,88 @@
+<!-- object定义为一个DAO对象 name为类名，tableName为对应的表名 -->
+<!-- dbname 可选，若需要同时生成不同库的对象，则加入dbname选项 -->
+<object name="UserDao" tableName="User" dbname="NBUser" >
+
+    <!-- 定义字段名称和类型 -->
+    <fields>
+        <field name="id" type="int32" />
+        <field name="name" type="varchar" len="32" />
+    </fields>
+
+    <!-- 定义select接口 -->
+    <!-- name: 接口名称 -->
+    <!-- limit: 查询的limit限制 -->
+    <!-- offset: 查询的offset限制 -->
+    <select name="SelectAll" limit="10" offset="10">
+        
+        <!-- 定义需要select出来的字段。可选项，默认为select出来所有的字段 -->
+        <fields>
+            <!-- name为数据库中的字段名称。 alias为select出来是否需要定义别名，可选。 -->
+            <field name="id" alias="userId" />
+            <field name="name" />
+        </fields>
+
+        <!-- 定义where条件 -->
+        <!-- 一个secion为一个()，匹配业务中需要处理or, and等优先级的情况 -->
+        <!-- 如: WHERE ( 1=1 and 1=1 and 1=1 ) or (1=1 or 1=2 or 1=3) -->
+        <!-- 2个()属于2个 conditionSection, conditionSection内的condition即为 1=1 -->
+        <conditions>
+            <!-- 定义( )条件段 -->
+            <conditionSection>
+                <!-- 定义条件段中的条件 -->
+                <!-- field:查询的字段名 -->
+                <!-- cond:SQL查询的支持的操作符，如：=, <, >, in 等等 -->
+                <!-- value:若是个常数值，可直接写。若是个变量值，输入 ? 占位-->
+                <condition field="1" cond="=" value="?" />
+                <condition field="id" cond="=" value="1" union="and" />
+                <condition field="1" cond="=" value="1" union="and" />
+            </conditionSection>
+            <!-- union为定义与上个conditionSection的联合方式。若不填，则为首个section -->
+            <conditionSection union="or">
+                <!-- 定义条件段中的条件 -->
+                <condition field="1" cond="=" value="1" />
+                <condition field="1" cond="=" value="?" union="or" />
+                <condition field="1" cond="=" value="?" union="or" />
+            </conditionSection>
+        </conditions>
+
+        <!-- 定义orderby -->
+        <order>
+            <!-- 定义需要参与排序的字段 -->
+            <!-- name: 字段名称 -->
+            <!-- sort: 排序规则 -->
+            <field name="id" sort="asc" />
+            <field name="name" sort="desc" />
+        </order>
+    </select>
+
+    <!-- 定义update接口 -->
+    <update name="Update">
+        <!-- 定义需要更新的字段 -->
+        <fields>
+            <!-- name: 字段名称 -->
+            <!-- value: 常数值直接填，变量值填 ? 占位符 -->
+            <field name="id" value="?" />
+        </fields>
+
+        <!-- 定义update的condition -->
+        <conditions>
+            <conditionSection>
+                <condition field="id" cond="=" value="?" />
+                <condition field="name" cond="=" value="?" union="and" />
+            </conditionSection>
+        </conditions>
+    </update>
+
+    <!-- 定义insert接口 -->
+    <insert name="Insert">
+        <!-- 定义需要insert的字段。可选项，默认为所有的字段 -->
+        <fields>
+            <!-- name为数据库中的字段名称。-->
+            <!-- value: 可选项，不填即为 ?, 常数项可填 -->
+            <field name="id" />
+            <field name="name" />
+            <field name="status" value="1" />
+        </fields>
+    </insert>
+
+</object>
