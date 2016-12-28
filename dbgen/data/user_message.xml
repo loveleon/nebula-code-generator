@@ -1,0 +1,41 @@
+<!-- objectName为对象名称 tableName为对应的表名 -->
+<object objectName="UserMessage" tableName="user_message">
+
+    <!-- 定义字段名称和类型 -->
+    <fields>
+        <field name="id" type="uint64" />
+        <field name="user_id" type="string" />
+        <field name="message_seq" type="uint64" />
+        <field name="message_id" type="uint64" />
+        <field name="sender_user_id" type="string" />
+        <field name="peer_id" type="string" />
+        <field name="peer_type" type="uint32" />
+        <field name="client_message_id" type="uint64" />
+        <field name="message_peer_seq" type="uint64" />
+        <field name="message_content_type" type="uint32" />
+        <field name="message_content_data" type="string" />
+        <field name="passthrough_data" type="string" />
+        <field name="status" type="int" />
+        <field name="created_at" type="uint64" />
+        <field name="updated_at" type="uint64" />
+    </fields>
+
+    <!-- 定义insert接口: 创建信息 -->
+    <create name="Create" connPool="nebula_engine" returnType="int64">
+        <param name="user_message" type="UserMessageDO" />        
+    </create>
+
+    <!-- 定义list获取接口: 根据userId获取指定长度的记录 -->
+    <list name="LoadUserMessageList" connPool="nebula_engine" resultName="user_message_list" limit="200" >
+        <condition name="user_id" type="string" method="=" />
+        <condition name="received_max_message_seq" type="uint64" method=">" />
+    </list>
+
+    <!-- 定义list获取接口: 获取userId, peer_id 对应的消息记录 -->
+    <list name="LoadUserDialogMessageList" connPool="nebula_engine" resultName="user_message_list" limit="200" offset="0">
+        <condition name="user_id" type="string" method="=" />
+        <condition name="peer_id" type="string" method="=" />
+        <condition name="peer_type" type="uint32" method="=" />
+    </list>
+   
+</object>

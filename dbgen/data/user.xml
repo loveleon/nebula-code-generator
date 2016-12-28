@@ -16,25 +16,25 @@
     </fields>
 
     <!-- 定义查询接口: 根据用户Id获取userDO信息 -->
-    <select name="GetUserByUserID">
+    <get name="GetUserByUserID" connPool="nebula_platform">
         <param name="app_id" type="uint32" />
         <param name="user_id" type="string" />
         <result name="user_do" type="UserDO" />
-    </select>
+    </get>
 
     <!-- 定义查询接口: 根据token获取userDO信息 -->
-    <select name="GetUserByToken">
+    <get name="GetUserByToken" connPool="nebula_platform">
         <param name="app_key" type="string" />
         <param name="user_token" type="string" />
         <result name="user_do" type="UserDO" />
-    </select>
+    </get>
 
     <!-- 定义查询接口: 根据id&密码获取 userDao -->
-    <select name="GetUserByNamePasswd">
+    <get name="GetUserByNamePasswd" connPool="nebula_platform">
         <param name="app_id" type="uint32" />
         <param name="user_id" type="string" />
         <param name="passwd" type="string" />
         <result name="user_do" type="UserDO" />
-    </select>
+    </get>
    
 </object>

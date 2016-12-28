@@ -44,7 +44,7 @@ class CppGenerator(object):
             return False
         self.table_name = root.attrib["tableName"]
         obj_prefix = root.attrib["objectName"]
-        filename_prefix = obj_prefix.lower()
+        filename_prefix = self.table_name.lower()
         # 生成 _do 文件
         if not self._generate_do(obj_prefix, filename_prefix):
             return False
@@ -183,8 +183,8 @@ class CppGenerator(object):
         struct += "  virtual ~{0}DAO() = default; \n\n".format(prefix)
         struct += "  static {0}DAO& GetInstance(); \n\n".format(prefix)
 
-        # 生成 select 接口
-        for query in self.tree.iter(tag="select"):
+        # 生成 get 接口
+        for query in self.tree.iter(tag="get"):
             interface = "  virtual int {0}(".format(query.attrib['name'])
             # 构建输入参数
             for param in query.iter(tag="param"):
@@ -202,6 +202,41 @@ class CppGenerator(object):
 
             # 添加到string
             struct += interface
+
+        # 生成 create 接口
+        for query in self.tree.iter(tag="create"):
+            interface = "  virtual {0} {1}(".format(
+                self._get_type(query.attrib['returnType']),
+                query.attrib['name'])
+            for param in query.iter(tag="param"):
+                interface += "{0}& {1},".format(
+                    param.attrib['type'],
+                    param.attrib['name']
+                )
+            interface = interface[:len(interface) - 1]
+            interface += ") = 0;\n\n"
+
+            # 添加到string
+            struct += interface
+
+        # 生成list接口
+        for query in self.tree.iter(tag="list"):
+            interface = "  virtual int {0}(".format(query.attrib['name'])
+
+            # 查询参数
+            for param in query.iter(tag="condition"):
+                interface += "{0} {1}, ".format(
+                    self._get_param_type(param.attrib['type']),
+                    param.attrib['name']
+                )
+
+            # 返回结果
+            interface += "{0}DOList& {1}".format(prefix, query.attrib['resultName'])
+            interface += ") = 0;\n\n"
+
+            # 添加到string
+            struct += interface
+
         #TODO: 生成update接口
         #TODO: 生成insert接口
         struct += "};\n\n"
@@ -254,8 +289,8 @@ class CppGenerator(object):
         struct += " { \n"
         struct += "  virtual ~{0}DAOImpl() = default; \n\n".format(obj_prefix)
 
-        # 生成 select 接口
-        for query in self.tree.iter(tag="select"):
+        # 生成 get 接口
+        for query in self.tree.iter(tag="get"):
             interface = "  int {0}(".format(query.attrib['name'])
             # 构建输入参数
             for param in query.iter(tag="param"):
@@ -269,6 +304,40 @@ class CppGenerator(object):
                     result.attrib['type'],
                     result.attrib['name'])
             interface = interface[:len(interface) - 1]
+            interface += ") override;\n\n"
+
+            # 添加到string
+            struct += interface
+
+        # 生成 create 接口
+        for query in self.tree.iter(tag="create"):
+            interface = "  {0} {1}(".format(
+                self._get_type(query.attrib['returnType']),
+                query.attrib['name'])
+            for param in query.iter(tag="param"):
+                interface += "{0}& {1},".format(
+                    param.attrib['type'],
+                    param.attrib['name']
+                )
+            interface = interface[:len(interface) - 1]
+            interface += ") override;\n\n"
+
+            # 添加到string
+            struct += interface
+
+        # 生成list接口
+        for query in self.tree.iter(tag="list"):
+            interface = "  int {0}(".format(query.attrib['name'])
+
+            # 查询参数
+            for param in query.iter(tag="condition"):
+                interface += "{0} {1}, ".format(
+                    self._get_param_type(param.attrib['type']),
+                    param.attrib['name']
+                )
+
+            # 返回结果
+            interface += "{0}DOList& {1}".format(obj_prefix, query.attrib['resultName'])
             interface += ") override;\n\n"
 
             # 添加到string
@@ -314,8 +383,8 @@ class CppGenerator(object):
         struct += "  return impl;\n"
         struct += "}\n\n"
 
-        # 生成 select 接口
-        for query in self.tree.iter(tag="select"):
+        # 生成 get 接口
+        for query in self.tree.iter(tag="get"):
             interface = "int {0}DAOImpl::{1}(".format(obj_prefix, query.attrib['name'])
             # 构建输入参数
             for param in query.iter(tag="param"):
@@ -332,7 +401,7 @@ class CppGenerator(object):
             interface += ") {\n"
 
             # 生成实现代码
-            interface += "  return DoStorageQuery(\"nebula_platform\",\n"
+            interface += "  return DoStorageQuery(\"{0}\",\n".format(query.attrib['connPool'])
             interface += "  \t\t\t[&](std::string& query_string) {\n"
             interface += "  \t\t\t  folly::format(&query_string,\n"
 
@@ -377,9 +446,124 @@ class CppGenerator(object):
             interface += "  \t\t\t  } while (0);\n\n"
             interface += "  \t\t\t  return BREAK;\n"
             interface += "  \t\t\t});\n"
-            
+
             # 添加到string
             interface += "}\n\n"
+            struct += interface
+
+        # 生成 create 接口实现
+        for query in self.tree.iter(tag="create"):
+            interface = "{0} {1}DAOImpl::{2}(".format(
+                self._get_type(query.attrib['returnType']),
+                obj_prefix,
+                query.attrib['name'])
+
+            # 构建参数
+            param_name = ""
+            for param in query.iter(tag="param"):
+                param_name = param.attrib['name']
+                interface += "{0}& {1}, ".format(param.attrib['type'], param.attrib['name'])
+            interface = interface[:len(interface) - 2] + ") {\n"
+            interface += "  return DoStorageInsertID(\"{0}\",\n".format(query.attrib['connPool'])
+
+            interface += "  \t\t\t[&](std::string& query_string) {\n"
+            interface += "  \t\t\t  db::QueryParam p;\n"
+
+            # 构建字段值
+            for key, value in self.fields.iteritems():
+                if key == "status":
+                    continue
+                if value == "string":
+                    interface += "  \t\t\t  p.AddParam({0}.{1}.c_str());\n".format(
+                        param_name,
+                        key)
+                else:
+                    interface += "  \t\t\t  p.AddParam(&{0}.{1});\n".format(
+                        param_name,
+                        key)
+            interface += "\n"
+            interface += "  \t\t\t  db::MakeQueryString(\"INSERT INTO {0}\"\n".format(
+                self.table_name)
+            key_str = "\"("
+            holds_str = "\"("
+            i = 1
+            for key in self.fields.iterkeys():
+                key_str += "{0},".format(key)
+                if key == "status":
+                    holds_str += "1,"
+                    continue
+                holds_str += ":{0},".format(i)
+                i = i + 1
+            key_str = key_str[:len(key_str) - 1] + ")\""
+            holds_str = holds_str[:len(holds_str) - 1] + ")\""
+            interface += "  \t\t\t  \t\t{0}\n".format(key_str)
+            interface += "  \t\t\t  \t\t\" VALUES \"\n"
+            interface += "  \t\t\t  \t\t{0},\n".format(holds_str)
+            interface += "  \t\t\t  \t\t&p,\n"
+            interface += "  \t\t\t  \t\t&query_string);\n"
+
+            interface += "  \t\t\t});\n"
+            interface += "}\n\n"
+
+            struct += interface
+
+        # 生成 list 接口实现
+        for query in self.tree.iter(tag="list"):
+            interface = "int {0}DAOImpl::{1}(".format(
+                obj_prefix,
+                query.attrib['name'])
+            # 构建参数列表
+            for condition in query.iter(tag="condition"):
+                interface += "{0} {1}, ".format(
+                    self._get_param_type(condition.attrib['type']),
+                    condition.attrib['name'])
+            # 输出参数
+            interface += "{0}DOList& {1})".format(
+                obj_prefix,
+                query.attrib['resultName'])
+            interface += " {\n"
+
+            interface += "  return DoStorageQuery(\"{0}\",\n".format(query.attrib['connPool'])
+            interface += "  \t\t\t[&](std::string& query_string) {\n"
+            interface += "  \t\t\t  query_string = folly::sformat("
+            keys = ""
+            for key in self.fields.iterkeys():
+                keys += "{0},".format(key)
+            keys = keys[:len(keys) - 1]
+            interface += "\"SELECT {0} FROM {1} WHERE ".format(keys, self.table_name)
+            for condition in query.iter(tag="condition"):
+                value = "{}"
+                if condition.attrib['type'] == "string":
+                    value = "'{}'"
+                interface += "{0}{1}{2} AND ".format(
+                    condition.attrib['name'],
+                    condition.attrib['method'],
+                    value)
+            interface = interface[:len(interface) - 5]
+            interface += " LIMIT {0}".format(query.attrib['limit'])
+            if "offset" in query.attrib:
+                interface += " OFFSET {0}".format(query.attrib['offset'])
+            interface += "\",\n"
+            for condition in query.iter(tag="condition"):
+                interface += "  \t\t\t  \t\t" + condition.attrib['name'] + ",\n"
+            interface = interface[:len(interface) - 2] + ");\n"
+            interface += "  \t\t\t},\n"
+
+            interface += "  \t\t\t[&](db::QueryAnswer& answ) -> int {\n"
+            interface += "  \t\t\t  auto data = std::make_shared<{0}DO>();\n".format(obj_prefix)
+
+            i = 0
+            for key, value in self.fields.iteritems():
+                interface += "  \t\t\t  answ.GetColumn({0}, &data.{1});\n".format(i, key)
+                i = i+1
+            interface += "  \t\t\t  {0}.push_back(data);\n".format(
+                query.attrib['resultName']
+            )
+            interface += "  \t\t\t  return CONTINUE;\n"
+            interface += "  \t\t\t});\n"
+
+            interface += "}\n\n"
+            # 添加到string
             struct += interface
 
         return struct
