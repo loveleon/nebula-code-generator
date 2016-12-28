@@ -21,8 +21,7 @@
     </fields>
 
     <!-- 定义insert接口: 创建信息 -->
-    <create name="Create" connPool="nebula_engine" returnType="int64">
-        <param name="user_message" type="UserMessageDO" />        
+    <create name="Create" connPool="nebula_engine" returnType="int64" entity="user_message">  
     </create>
 
     <!-- 定义list获取接口: 根据userId获取指定长度的记录 -->
@@ -31,7 +30,7 @@
         <condition name="received_max_message_seq" type="uint64" method=">" />
     </list>
 
-    <!-- 定义list获取接口: 获取userId, peer_id 对应的消息记录 -->
+    <!-- 定义list获取接口: 获取userId, peer_id对应的消息记录 -->
     <list name="LoadUserDialogMessageList" connPool="nebula_engine" resultName="user_message_list" limit="200" offset="0">
         <condition name="user_id" type="string" method="=" />
         <condition name="peer_id" type="string" method="=" />

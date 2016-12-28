@@ -208,12 +208,9 @@ class CppGenerator(object):
             interface = "  virtual {0} {1}(".format(
                 self._get_type(query.attrib['returnType']),
                 query.attrib['name'])
-            for param in query.iter(tag="param"):
-                interface += "{0}& {1},".format(
-                    param.attrib['type'],
-                    param.attrib['name']
-                )
-            interface = interface[:len(interface) - 1]
+            interface += "{0}DO& {1}".format(
+                prefix,
+                query.attrib['entity'])
             interface += ") = 0;\n\n"
 
             # 添加到string
@@ -238,7 +235,6 @@ class CppGenerator(object):
             struct += interface
 
         #TODO: 生成update接口
-        #TODO: 生成insert接口
         struct += "};\n\n"
         return struct
 
@@ -314,12 +310,9 @@ class CppGenerator(object):
             interface = "  {0} {1}(".format(
                 self._get_type(query.attrib['returnType']),
                 query.attrib['name'])
-            for param in query.iter(tag="param"):
-                interface += "{0}& {1},".format(
-                    param.attrib['type'],
-                    param.attrib['name']
-                )
-            interface = interface[:len(interface) - 1]
+            interface += "{0}DO& {1}".format(
+                obj_prefix,
+                query.attrib['entity'])
             interface += ") override;\n\n"
 
             # 添加到string
@@ -459,11 +452,11 @@ class CppGenerator(object):
                 query.attrib['name'])
 
             # 构建参数
-            param_name = ""
-            for param in query.iter(tag="param"):
-                param_name = param.attrib['name']
-                interface += "{0}& {1}, ".format(param.attrib['type'], param.attrib['name'])
-            interface = interface[:len(interface) - 2] + ") {\n"
+            entity_name = query.attrib['entity']
+            interface += "{0}DO& {1}".format(
+                obj_prefix,
+                entity_name)
+            interface += ") {\n"
             interface += "  return DoStorageInsertID(\"{0}\",\n".format(query.attrib['connPool'])
 
             interface += "  \t\t\t[&](std::string& query_string) {\n"
@@ -475,11 +468,11 @@ class CppGenerator(object):
                     continue
                 if value == "string":
                     interface += "  \t\t\t  p.AddParam({0}.{1}.c_str());\n".format(
-                        param_name,
+                        entity_name,
                         key)
                 else:
                     interface += "  \t\t\t  p.AddParam(&{0}.{1});\n".format(
-                        param_name,
+                        entity_name,
                         key)
             interface += "\n"
             interface += "  \t\t\t  db::MakeQueryString(\"INSERT INTO {0}\"\n".format(

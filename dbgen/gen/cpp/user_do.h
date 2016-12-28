@@ -38,7 +38,7 @@ struct UserDO {
   META(id, app_id, user_token, user_id, avatar, nick, is_active, status, created_at, updated_at); 
 };
 
-using UserDOPtr = std::shared_ptr<UserDO>; 
-using UserDOList = std::list<UserDOPtr>; 
+using UserDOPtr = std::shared_ptr<UserDO>;
+using UserDOList = std::list<UserDOPtr>;
 
 #endif//IMENGINE_DAL_USER_DO_H_ 
