@@ -18,6 +18,8 @@ class CppGenerator(object):
             raise Exception("tree is empty!!")
         self.tree = tree
         self.output_dir = None
+        self.table_name = ""
+        self.fields = {} # 存储字段列表 field=>type
 
     def generate(self, output_dir):
         """
@@ -37,10 +39,11 @@ class CppGenerator(object):
             os.makedirs(output_dir)
 
         root = self.tree.getroot()
-        if "tableName" not in root.attrib:
-            print "<object> section has no attribute: tableName"
+        if "objectName" not in root.attrib:
+            print "<object> section has no attribute: objectName"
             return False
-        obj_prefix = root.attrib["tableName"]
+        self.table_name = root.attrib["tableName"]
+        obj_prefix = root.attrib["objectName"]
         filename_prefix = obj_prefix.lower()
         # 生成 _do 文件
         if not self._generate_do(obj_prefix, filename_prefix):
@@ -62,6 +65,8 @@ class CppGenerator(object):
         """
         if typename == "string":
             return "std::{0}".format(typename)
+        elif typename == "int":
+            return "int"
         else:
             return "{0}_t".format(typename)
 
@@ -112,6 +117,7 @@ class CppGenerator(object):
         meta = "  META("
         for elem in root[0].getiterator("field"):
             meta += "{0}, ".format(elem.attrib["name"]) # 构建meta
+            self.fields[elem.attrib["name"]] = elem.attrib["type"] # 将字段名称储存, 构建sql语句使需要
             # 生成字段
             field = "  %s %s" % (self._get_type(elem.attrib["type"]), elem.attrib["name"])
             if "defaultValue" in elem.attrib:
@@ -157,6 +163,17 @@ class CppGenerator(object):
 
         return True
 
+    def _get_param_type(self, typename):
+        """
+        获取接口的参数类型
+        """
+        if typename == "string":
+            return "const std::string&"
+        elif typename == "int":
+            return "int"
+        else:
+            return "{0}_t".format(typename)
+
     def _get_dao_struct(self, prefix):
         """
         生成ObjectDAO结构
@@ -165,7 +182,28 @@ class CppGenerator(object):
         struct += " { \n"
         struct += "  virtual ~{0}DAO() = default; \n\n".format(prefix)
         struct += "  static {0}DAO& GetInstance(); \n\n".format(prefix)
-        #TODO: 生成纯虚接口函数
+
+        # 生成 select 接口
+        for query in self.tree.iter(tag="select"):
+            interface = "  virtual int {0}(".format(query.attrib['name'])
+            # 构建输入参数
+            for param in query.iter(tag="param"):
+                interface += "{0} {1},".format(
+                    self._get_param_type(param.attrib['type']),
+                    param.attrib['name'])
+            interface = interface[:len(interface) - 1]
+            # 构建返回参数
+            for result in query.iter(tag="result"):
+                interface += ", {0}& {1},".format(
+                    result.attrib['type'],
+                    result.attrib['name'])
+            interface = interface[:len(interface) - 1]
+            interface += ") = 0;\n\n"
+
+            # 添加到string
+            struct += interface
+        #TODO: 生成update接口
+        #TODO: 生成insert接口
         struct += "};\n\n"
         return struct
 
@@ -214,8 +252,28 @@ class CppGenerator(object):
         """
         struct = "struct {0}DAOImpl : public {0}DAO".format(obj_prefix)
         struct += " { \n"
-        struct += " virtual ~{0}DAOImpl() = default; \n\n".format(obj_prefix)
-        #TODO: 生成接口实现函数
+        struct += "  virtual ~{0}DAOImpl() = default; \n\n".format(obj_prefix)
+
+        # 生成 select 接口
+        for query in self.tree.iter(tag="select"):
+            interface = "  int {0}(".format(query.attrib['name'])
+            # 构建输入参数
+            for param in query.iter(tag="param"):
+                interface += "{0} {1},".format(
+                    self._get_param_type(param.attrib['type']),
+                    param.attrib['name'])
+            interface = interface[:len(interface) - 1]
+            # 构建返回参数
+            for result in query.iter(tag="result"):
+                interface += ", {0}& {1},".format(
+                    result.attrib['type'],
+                    result.attrib['name'])
+            interface = interface[:len(interface) - 1]
+            interface += ") override;\n\n"
+
+            # 添加到string
+            struct += interface
+
         struct += "}; \n\n"
         return struct
 
@@ -255,7 +313,75 @@ class CppGenerator(object):
         struct += "  static {0}DAOImpl impl;\n".format(obj_prefix)
         struct += "  return impl;\n"
         struct += "}\n\n"
-        #TODO: 生成实现函数
+
+        # 生成 select 接口
+        for query in self.tree.iter(tag="select"):
+            interface = "int {0}DAOImpl::{1}(".format(obj_prefix, query.attrib['name'])
+            # 构建输入参数
+            for param in query.iter(tag="param"):
+                interface += "{0} {1},".format(
+                    self._get_param_type(param.attrib['type']),
+                    param.attrib['name'])
+            interface = interface[:len(interface) - 1]
+            # 构建返回参数
+            for result in query.iter(tag="result"):
+                interface += ", {0}& {1},".format(
+                    result.attrib['type'],
+                    result.attrib['name'])
+            interface = interface[:len(interface) - 1]
+            interface += ") {\n"
+
+            # 生成实现代码
+            interface += "  return DoStorageQuery(\"nebula_platform\",\n"
+            interface += "  \t\t\t[&](std::string& query_string) {\n"
+            interface += "  \t\t\t  folly::format(&query_string,\n"
+
+            keys = ""
+            for key in self.fields.iterkeys():
+                keys += "{0},".format(key)
+            keys = keys[:len(keys) - 1]
+            interface += "  \t\t\t  \t\t\"SELECT {0} FROM {1} WHERE \"\n".format(
+                keys,
+                self.table_name)
+
+            interface += "  \t\t\t  \t\t\""
+            for param in query.iter(tag="param"):
+                interface += param.attrib['name'] + "="
+                if param.attrib['type'] == "string":
+                    interface += "'{}' AND "
+                else:
+                    interface += "{} AND "
+            interface = interface[:len(interface) - 5]
+            interface += "\",\n"
+            for param in query.iter(tag="param"):
+                interface += "  \t\t\t  \t\t{0},\n".format(param.attrib['name'])
+            interface = interface[:len(interface) - 2]
+            interface += ");\n"
+            interface += "  \t\t\t},\n"
+            interface += "  \t\t\t[&](db::QueryAnswer& answ) -> int {\n"
+            interface += "  \t\t\t  int result = CONTINUE;\n\n"
+            interface += "  \t\t\t  do {\n"
+
+            for result in query.iter(tag="result"):
+                name = result.attrib['name']
+                i = 0
+                for key, value in self.fields.iteritems():
+                    if value == "string":
+                        interface += "  \t\t\t  \tDB_GET_COLUMN({0}, {1}.{2});\n".format(
+                            i, name, key)
+                    else:
+                        interface += "  \t\t\t  \tDB_GET_RETURN_COLUMN({0}, {1}.{2});\n".format(
+                            i, name, key)
+                    i = i+1
+
+            interface += "  \t\t\t  } while (0);\n\n"
+            interface += "  \t\t\t  return BREAK;\n"
+            interface += "  \t\t\t});\n"
+            
+            # 添加到string
+            interface += "}\n\n"
+            struct += interface
+
         return struct
 
     def _generate_dao_impl_cc(self, obj_prefix, filename_prefix):

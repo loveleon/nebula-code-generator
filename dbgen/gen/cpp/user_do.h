@@ -24,11 +24,18 @@
 #include "dal/base_dal.h" 
 
 struct UserDO { 
-  int32_t id{0};
-  uint32_t appId{1};
-  std::string name;
+  uint64_t id{0};
+  uint32_t app_id{1};
+  std::string user_token;
+  std::string user_id;
+  std::string avatar;
+  std::string nick;
+  int is_active;
+  int status;
+  uint32_t created_at{0};
+  uint32_t updated_at{0};
 
-  META(id, appId, name); 
+  META(id, app_id, user_token, user_id, avatar, nick, is_active, status, created_at, updated_at); 
 };
 
 using UserDOPtr = std::shared_ptr<UserDO>; 
