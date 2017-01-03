@@ -16,25 +16,28 @@
     </fields>
 
     <!-- 定义查询接口: 根据用户Id获取userDO信息 -->
-    <get name="GetUserByUserID" connPool="nebula_platform">
-        <param name="app_id" type="uint32" />
-        <param name="user_id" type="string" />
-        <result name="user_do" type="UserDO" />
+    <get name="GetUserByUserID" connPool="nebula_platform" resultName="user_do">
+        <conditions>
+            <condition name="app_id" type="uint32" method="=" />
+            <condition name="user_id" type="string" method="=" unionType="and" />
+        </conditions>
     </get>
 
     <!-- 定义查询接口: 根据token获取userDO信息 -->
-    <get name="GetUserByToken" connPool="nebula_platform">
-        <param name="app_key" type="string" />
-        <param name="user_token" type="string" />
-        <result name="user_do" type="UserDO" />
+    <get name="GetUserByToken" connPool="nebula_platform" resultName="user_do">
+        <conditions>
+            <condition name="app_key" type="string" method="=" />
+            <condition name="user_token" type="string" method="=" unionType="and" />
+        </conditions>
     </get>
 
     <!-- 定义查询接口: 根据id&密码获取 userDao -->
-    <get name="GetUserByNamePasswd" connPool="nebula_platform">
-        <param name="app_id" type="uint32" />
-        <param name="user_id" type="string" />
-        <param name="passwd" type="string" />
-        <result name="user_do" type="UserDO" />
+    <get name="GetUserByNamePasswd" connPool="nebula_platform" resultName="user_do">
+        <conditions>
+            <condition name="app_id" type="uint32" method="=" />
+            <condition name="user_id" type="string" method="=" unionType="and" />
+            <condition name="passwd" type="string" method="=" unionType="and" />
+        </conditions>
     </get>
    
 </object>

@@ -187,17 +187,13 @@ class CppGenerator(object):
         for query in self.tree.iter(tag="get"):
             interface = "  virtual int {0}(".format(query.attrib['name'])
             # 构建输入参数
-            for param in query.iter(tag="param"):
-                interface += "{0} {1},".format(
+            for param in query.iter(tag="condition"):
+                interface += "{0} {1}, ".format(
                     self._get_param_type(param.attrib['type']),
                     param.attrib['name'])
-            interface = interface[:len(interface) - 1]
-            # 构建返回参数
-            for result in query.iter(tag="result"):
-                interface += ", {0}& {1},".format(
-                    result.attrib['type'],
-                    result.attrib['name'])
-            interface = interface[:len(interface) - 1]
+
+            # 返回结果
+            interface += "{0}DO& {1}".format(prefix, query.attrib['resultName'])
             interface += ") = 0;\n\n"
 
             # 添加到string
@@ -287,19 +283,15 @@ class CppGenerator(object):
 
         # 生成 get 接口
         for query in self.tree.iter(tag="get"):
-            interface = "  int {0}(".format(query.attrib['name'])
+            interface = "  virtual int {0}(".format(query.attrib['name'])
             # 构建输入参数
-            for param in query.iter(tag="param"):
-                interface += "{0} {1},".format(
+            for param in query.iter(tag="condition"):
+                interface += "{0} {1}, ".format(
                     self._get_param_type(param.attrib['type']),
                     param.attrib['name'])
-            interface = interface[:len(interface) - 1]
-            # 构建返回参数
-            for result in query.iter(tag="result"):
-                interface += ", {0}& {1},".format(
-                    result.attrib['type'],
-                    result.attrib['name'])
-            interface = interface[:len(interface) - 1]
+
+            # 返回结果
+            interface += "{0}DO& {1}".format(obj_prefix, query.attrib['resultName'])
             interface += ") override;\n\n"
 
             # 添加到string
@@ -366,6 +358,41 @@ class CppGenerator(object):
 
         return True
 
+    # 获取查询条件&values
+    def _get_condition_statement(self, query):
+        """
+        拼接查询条件语句
+        """
+        stmts = ""
+        values = ""
+        for conditions in query.iter(tag="conditions"):
+            line = ""
+            if 'unionType' in conditions.attrib and conditions.attrib['unionType'] != '':
+                line += " {0} ".format(conditions.attrib['unionType'].upper())
+            line += "("
+            for condition in conditions.iter(tag="condition"):
+                fields = ""
+                if 'unionType' in condition.attrib and condition.attrib['unionType'] != '':
+                    fields += " {0} ".format(condition.attrib['unionType'].upper())
+                fields += "{0}{1}".format(condition.attrib['name'], condition.attrib['method'])
+                values += "{0},".format(condition.attrib['name'])
+                if condition.attrib['type'] == 'string':
+                    fields += "'{}'"
+                else:
+                    fields += "{}"
+                line += fields
+            line += ")"
+            stmts += line
+
+        # 拼接limit, offset
+        if "limit" in query.attrib:
+            stmts += " LIMIT {0}".format(query.attrib['limit'])
+        if "offset" in query.attrib:
+            stmts += " OFFSET {0}".format(query.attrib['offset'])
+
+        values = values[0:len(values) - 1]
+        return stmts, values
+
     def _get_dao_impl_funcs(self, obj_prefix):
         """
         生成函数实现代码
@@ -379,19 +406,16 @@ class CppGenerator(object):
         # 生成 get 接口
         for query in self.tree.iter(tag="get"):
             interface = "int {0}DAOImpl::{1}(".format(obj_prefix, query.attrib['name'])
-            # 构建输入参数
-            for param in query.iter(tag="param"):
-                interface += "{0} {1},".format(
-                    self._get_param_type(param.attrib['type']),
-                    param.attrib['name'])
-            interface = interface[:len(interface) - 1]
-            # 构建返回参数
-            for result in query.iter(tag="result"):
-                interface += ", {0}& {1},".format(
-                    result.attrib['type'],
-                    result.attrib['name'])
-            interface = interface[:len(interface) - 1]
-            interface += ") {\n"
+            # 构建参数列表
+            for condition in query.iter(tag="condition"):
+                interface += "{0} {1}, ".format(
+                    self._get_param_type(condition.attrib['type']),
+                    condition.attrib['name'])
+            # 输出参数
+            interface += "{0}DOList& {1})".format(
+                obj_prefix,
+                query.attrib['resultName'])
+            interface += " {\n"
 
             # 生成实现代码
             interface += "  return DoStorageQuery(\"{0}\",\n".format(query.attrib['connPool'])
@@ -407,34 +431,25 @@ class CppGenerator(object):
                 self.table_name)
 
             interface += "  \t\t\t  \t\t\""
-            for param in query.iter(tag="param"):
-                interface += param.attrib['name'] + "="
-                if param.attrib['type'] == "string":
-                    interface += "'{}' AND "
-                else:
-                    interface += "{} AND "
-            interface = interface[:len(interface) - 5]
-            interface += "\",\n"
-            for param in query.iter(tag="param"):
-                interface += "  \t\t\t  \t\t{0},\n".format(param.attrib['name'])
-            interface = interface[:len(interface) - 2]
-            interface += ");\n"
+            cond, values = self._get_condition_statement(query)
+            interface += cond + "\",\n"
+            interface += "  \t\t\t  \t\t" + values + "\n"
             interface += "  \t\t\t},\n"
             interface += "  \t\t\t[&](db::QueryAnswer& answ) -> int {\n"
             interface += "  \t\t\t  int result = CONTINUE;\n\n"
             interface += "  \t\t\t  do {\n"
 
-            for result in query.iter(tag="result"):
-                name = result.attrib['name']
-                i = 0
-                for key, value in self.fields.iteritems():
-                    if value == "string":
-                        interface += "  \t\t\t  \tDB_GET_COLUMN({0}, {1}.{2});\n".format(
-                            i, name, key)
-                    else:
-                        interface += "  \t\t\t  \tDB_GET_RETURN_COLUMN({0}, {1}.{2});\n".format(
-                            i, name, key)
-                    i = i+1
+            i = 0
+            for key, value in self.fields.iteritems():
+                if value == "string":
+                    interface += "  \t\t\t  \tDB_GET_COLUMN({0}, {1}.{2});\n".format(
+                        i, query.attrib['resultName'], key
+                    )
+                else:
+                    interface += "  \t\t\t  \tDB_GET_RETURN_COLUMN({0}, {1}.{2});\n".format(
+                        i, query.attrib['resultName'], key
+                    )
+                i = i+1
 
             interface += "  \t\t\t  } while (0);\n\n"
             interface += "  \t\t\t  return BREAK;\n"
@@ -524,22 +539,11 @@ class CppGenerator(object):
                 keys += "{0},".format(key)
             keys = keys[:len(keys) - 1]
             interface += "\"SELECT {0} FROM {1} WHERE ".format(keys, self.table_name)
-            for condition in query.iter(tag="condition"):
-                value = "{}"
-                if condition.attrib['type'] == "string":
-                    value = "'{}'"
-                interface += "{0}{1}{2} AND ".format(
-                    condition.attrib['name'],
-                    condition.attrib['method'],
-                    value)
-            interface = interface[:len(interface) - 5]
-            interface += " LIMIT {0}".format(query.attrib['limit'])
-            if "offset" in query.attrib:
-                interface += " OFFSET {0}".format(query.attrib['offset'])
-            interface += "\",\n"
-            for condition in query.iter(tag="condition"):
-                interface += "  \t\t\t  \t\t" + condition.attrib['name'] + ",\n"
-            interface = interface[:len(interface) - 2] + ");\n"
+
+            # 构建查询条件 & 变量
+            cond, value = self._get_condition_statement(query)
+            interface += cond + "\",\n"
+            interface += "  \t\t\t  \t\t" + value + "\n"
             interface += "  \t\t\t},\n"
 
             interface += "  \t\t\t[&](db::QueryAnswer& answ) -> int {\n"

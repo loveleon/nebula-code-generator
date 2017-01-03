@@ -53,9 +53,8 @@ int64_t UserMessageDAOImpl::Create(UserMessageDO& user_message) {
 int UserMessageDAOImpl::LoadUserMessageList(const std::string& user_id, uint64_t received_max_message_seq, UserMessageDOList& user_message_list) {
   return DoStorageQuery("nebula_engine",
   			[&](std::string& query_string) {
-  			  query_string = folly::sformat("SELECT status,passthrough_data,user_id,message_content_type,client_message_id,peer_type,message_content_data,updated_at,sender_user_id,message_peer_seq,message_id,message_seq,created_at,peer_id,id FROM user_message WHERE user_id='{}' AND received_max_message_seq>{} LIMIT 200",
-  			  		user_id,
-  			  		received_max_message_seq);
+  			  query_string = folly::sformat("SELECT status,passthrough_data,user_id,message_content_type,client_message_id,peer_type,message_content_data,updated_at,sender_user_id,message_peer_seq,message_id,message_seq,created_at,peer_id,id FROM user_message WHERE (user_id='{}' AND received_max_message_seq>{}) LIMIT 200",
+  			  		user_id,received_max_message_seq
   			},
   			[&](db::QueryAnswer& answ) -> int {
   			  auto data = std::make_shared<UserMessageDO>();
@@ -82,10 +81,8 @@ int UserMessageDAOImpl::LoadUserMessageList(const std::string& user_id, uint64_t
 int UserMessageDAOImpl::LoadUserDialogMessageList(const std::string& user_id, const std::string& peer_id, uint32_t peer_type, UserMessageDOList& user_message_list) {
   return DoStorageQuery("nebula_engine",
   			[&](std::string& query_string) {
-  			  query_string = folly::sformat("SELECT status,passthrough_data,user_id,message_content_type,client_message_id,peer_type,message_content_data,updated_at,sender_user_id,message_peer_seq,message_id,message_seq,created_at,peer_id,id FROM user_message WHERE user_id='{}' AND peer_id='{}' AND peer_type={} LIMIT 200 OFFSET 0",
-  			  		user_id,
-  			  		peer_id,
-  			  		peer_type);
+  			  query_string = folly::sformat("SELECT status,passthrough_data,user_id,message_content_type,client_message_id,peer_type,message_content_data,updated_at,sender_user_id,message_peer_seq,message_id,message_seq,created_at,peer_id,id FROM user_message WHERE (user_id='{}' AND peer_id='{}' AND peer_type={}) LIMIT 200 OFFSET 0",
+  			  		user_id,peer_id,peer_type
   			},
   			[&](db::QueryAnswer& answ) -> int {
   			  auto data = std::make_shared<UserMessageDO>();

@@ -25,11 +25,11 @@ struct UserDAO : public BaseDAO {
 
   static UserDAO& GetInstance(); 
 
-  virtual int GetUserByUserID(uint32_t app_id,const std::string& user_id, UserDO& user_do) = 0;
+  virtual int GetUserByUserID(uint32_t app_id, const std::string& user_id, UserDO& user_do) = 0;
 
-  virtual int GetUserByToken(const std::string& app_key,const std::string& user_token, UserDO& user_do) = 0;
+  virtual int GetUserByToken(const std::string& app_key, const std::string& user_token, UserDO& user_do) = 0;
 
-  virtual int GetUserByNamePasswd(uint32_t app_id,const std::string& user_id,const std::string& passwd, UserDO& user_do) = 0;
+  virtual int GetUserByNamePasswd(uint32_t app_id, const std::string& user_id, const std::string& passwd, UserDO& user_do) = 0;
 
 };
 

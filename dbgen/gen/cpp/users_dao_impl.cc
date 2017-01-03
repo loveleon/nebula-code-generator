@@ -22,14 +22,13 @@ UserDAO& UserDAO::GetInstance() {
   return impl;
 }
 
-int UserDAOImpl::GetUserByUserID(uint32_t app_id,const std::string& user_id, UserDO& user_do) {
+int UserDAOImpl::GetUserByUserID(uint32_t app_id, const std::string& user_id, UserDOList& user_do) {
   return DoStorageQuery("nebula_platform",
   			[&](std::string& query_string) {
   			  folly::format(&query_string,
   			  		"SELECT status,user_id,nick,created_at,is_active,app_id,updated_at,user_token,avatar,id FROM users WHERE "
-  			  		"app_id={} AND user_id='{}'",
-  			  		app_id,
-  			  		user_id);
+  			  		"(app_id={} AND user_id='{}')",
+  			  		app_id,user_id
   			},
   			[&](db::QueryAnswer& answ) -> int {
   			  int result = CONTINUE;
@@ -51,14 +50,13 @@ int UserDAOImpl::GetUserByUserID(uint32_t app_id,const std::string& user_id, Use
   			});
 }
 
-int UserDAOImpl::GetUserByToken(const std::string& app_key,const std::string& user_token, UserDO& user_do) {
+int UserDAOImpl::GetUserByToken(const std::string& app_key, const std::string& user_token, UserDOList& user_do) {
   return DoStorageQuery("nebula_platform",
   			[&](std::string& query_string) {
   			  folly::format(&query_string,
   			  		"SELECT status,user_id,nick,created_at,is_active,app_id,updated_at,user_token,avatar,id FROM users WHERE "
-  			  		"app_key='{}' AND user_token='{}'",
-  			  		app_key,
-  			  		user_token);
+  			  		"(app_key='{}' AND user_token='{}')",
+  			  		app_key,user_token
   			},
   			[&](db::QueryAnswer& answ) -> int {
   			  int result = CONTINUE;
@@ -80,15 +78,13 @@ int UserDAOImpl::GetUserByToken(const std::string& app_key,const std::string& us
   			});
 }
 
-int UserDAOImpl::GetUserByNamePasswd(uint32_t app_id,const std::string& user_id,const std::string& passwd, UserDO& user_do) {
+int UserDAOImpl::GetUserByNamePasswd(uint32_t app_id, const std::string& user_id, const std::string& passwd, UserDOList& user_do) {
   return DoStorageQuery("nebula_platform",
   			[&](std::string& query_string) {
   			  folly::format(&query_string,
   			  		"SELECT status,user_id,nick,created_at,is_active,app_id,updated_at,user_token,avatar,id FROM users WHERE "
-  			  		"app_id={} AND user_id='{}' AND passwd='{}'",
-  			  		app_id,
-  			  		user_id,
-  			  		passwd);
+  			  		"(app_id={} AND user_id='{}' AND passwd='{}')",
+  			  		app_id,user_id,passwd
   			},
   			[&](db::QueryAnswer& answ) -> int {
   			  int result = CONTINUE;
